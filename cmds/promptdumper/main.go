@@ -14,11 +14,13 @@ import (
 
 	"github.com/LubyRuffy/localdumper/httpdumper"
 	"github.com/LubyRuffy/localdumper/llmparser"
+	"github.com/fatih/color"
 	"github.com/google/gopacket"
 )
 
 type Notifier struct {
 	llmRequests sync.Map
+	printLock   sync.Mutex
 }
 
 func (n *Notifier) OnRequest(req *httpdumper.Request) {
@@ -31,7 +33,10 @@ func (n *Notifier) OnRequest(req *httpdumper.Request) {
 
 	n.llmRequests.Store(req.ID, time.Now())
 
-	fmt.Println(strings.Repeat(">", 58))
+	n.printLock.Lock()
+	defer n.printLock.Unlock()
+
+	color.Yellow(strings.Repeat(">", 58))
 	fmt.Printf("New request: %s\n", req.URL.String())
 
 	if llmReq.Model != "" {
@@ -46,9 +51,11 @@ func (n *Notifier) OnRequest(req *httpdumper.Request) {
 			for _, msg := range llmReq.Messages {
 				switch msg.Role {
 				case "system":
-					fmt.Printf("System: %s\n", msg.Content)
+					color.Red("%s\n", msg.Content)
+					// fmt.Printf("System: %s\n", msg.Content)
 				case "user":
-					fmt.Printf("User: %s\n", msg.Content)
+					color.Blue("%s\n", msg.Content)
+					// fmt.Printf("%s\n", msg.Content)
 				case "tool":
 					fmt.Printf("Tool response: %s\n", msg.Content)
 				case "assistant":
@@ -70,8 +77,7 @@ func (n *Notifier) OnRequest(req *httpdumper.Request) {
 		// 	}
 		// }
 	}
-	fmt.Println(strings.Repeat(">", 58))
-
+	color.Yellow(strings.Repeat(">", 58))
 }
 
 func (n *Notifier) OnResponse(resp *httpdumper.Response) {
@@ -83,11 +89,14 @@ func (n *Notifier) OnResponse(resp *httpdumper.Response) {
 		return
 	}
 
-	fmt.Println(strings.Repeat("<", 58))
+	n.printLock.Lock()
+	defer n.printLock.Unlock()
+
+	color.Green(strings.Repeat("<", 58))
 	fmt.Printf("New response: %s\n", resp.Request.URL)
 	ct := resp.Header.Get("Content-Type")
+	response := ""
 	if strings.HasPrefix(ct, "application/x-ndjson") {
-		response := ""
 		lines := strings.Split(string(resp.Body), "\n")
 		for _, line := range lines {
 			if line == "" {
@@ -99,15 +108,13 @@ func (n *Notifier) OnResponse(resp *httpdumper.Response) {
 			}
 			response += llmResp.String()
 		}
-		fmt.Printf("%s\n", response)
 	} else if strings.HasPrefix(ct, "application/json") {
 		var llmResp llmparser.LLMResponse
 		if err := json.Unmarshal(resp.Body, &llmResp); err != nil {
 			return
 		}
-		fmt.Printf("%s\n", llmResp.String())
+		response += llmResp.String()
 	} else if strings.HasPrefix(ct, "text/event-stream") {
-		response := ""
 		lines := strings.Split(string(resp.Body), "\n")
 		for _, line := range lines {
 			if line == "" {
@@ -129,11 +136,22 @@ func (n *Notifier) OnResponse(resp *httpdumper.Response) {
 			}
 			response += llmResp.String()
 		}
-		fmt.Printf("%s\n", response)
 	} else {
 		fmt.Printf("unknown content type: %s\n", ct)
 	}
-	fmt.Println(strings.Repeat("<", 58))
+
+	think := ""
+	if strings.HasPrefix(strings.Trim(response, "\r\n\t "), "<think>") {
+		think = strings.Split(response, "</think>")[0] + "</think>"
+		response = strings.Split(response, "</think>")[1]
+	}
+
+	if think != "" {
+		color.Cyan("%s\n", think)
+	}
+	color.Blue("%s\n", response)
+
+	color.Green(strings.Repeat("<", 58))
 
 	n.llmRequests.Delete(resp.Request.ID)
 
