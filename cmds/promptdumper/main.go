@@ -75,62 +75,68 @@ func (n *Notifier) OnRequest(req *httpdumper.Request) {
 }
 
 func (n *Notifier) OnResponse(resp *httpdumper.Response) {
-	// 对应的请求是llm请求
-	if _, ok := n.llmRequests.Load(resp.Request.ID); ok {
-		fmt.Println(strings.Repeat("<", 58))
-		fmt.Printf("New response: %s\n", resp.Request.URL)
-		ct := resp.Header.Get("Content-Type")
-		if strings.HasPrefix(ct, "application/x-ndjson") {
-			response := ""
-			lines := strings.Split(string(resp.Body), "\n")
-			for _, line := range lines {
-				if line == "" {
-					continue
-				}
-				var llmResp llmparser.LLMResponse
-				if err := json.Unmarshal([]byte(line), &llmResp); err != nil {
-					continue
-				}
-				response += llmResp.String()
-			}
-			fmt.Printf("%s\n", response)
-		} else if strings.HasPrefix(ct, "application/json") {
-			var llmResp llmparser.LLMResponse
-			if err := json.Unmarshal(resp.Body, &llmResp); err != nil {
-				return
-			}
-			fmt.Printf("%s\n", llmResp.String())
-		} else if strings.HasPrefix(ct, "text/event-stream") {
-			response := ""
-			lines := strings.Split(string(resp.Body), "\n")
-			for _, line := range lines {
-				if line == "" {
-					continue
-				}
-				if !strings.HasPrefix(line, "data:") {
-					continue
-				}
-				line = strings.TrimPrefix(line, "data:")
-				line = strings.TrimSpace(line)
-				if line == "" || line == "[DONE]" {
-					continue
-				}
-
-				var llmResp llmparser.LLMResponse
-				if err := json.Unmarshal([]byte(line), &llmResp); err != nil {
-					log.Printf("Failed to unmarshal response: %s\n", err)
-					continue
-				}
-				response += llmResp.String()
-			}
-			fmt.Printf("%s\n", response)
-		} else {
-			fmt.Printf("unknown content type: %s\n", ct)
-		}
-		fmt.Println(strings.Repeat("<", 58))
-
-		n.llmRequests.Delete(resp.Request.ID)
+	if resp.Request == nil || resp.Request.ID == "" {
+		return
 	}
+	// 对应的请求是llm请求
+	if _, ok := n.llmRequests.Load(resp.Request.ID); !ok {
+		return
+	}
+
+	fmt.Println(strings.Repeat("<", 58))
+	fmt.Printf("New response: %s\n", resp.Request.URL)
+	ct := resp.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "application/x-ndjson") {
+		response := ""
+		lines := strings.Split(string(resp.Body), "\n")
+		for _, line := range lines {
+			if line == "" {
+				continue
+			}
+			var llmResp llmparser.LLMResponse
+			if err := json.Unmarshal([]byte(line), &llmResp); err != nil {
+				continue
+			}
+			response += llmResp.String()
+		}
+		fmt.Printf("%s\n", response)
+	} else if strings.HasPrefix(ct, "application/json") {
+		var llmResp llmparser.LLMResponse
+		if err := json.Unmarshal(resp.Body, &llmResp); err != nil {
+			return
+		}
+		fmt.Printf("%s\n", llmResp.String())
+	} else if strings.HasPrefix(ct, "text/event-stream") {
+		response := ""
+		lines := strings.Split(string(resp.Body), "\n")
+		for _, line := range lines {
+			if line == "" {
+				continue
+			}
+			if !strings.HasPrefix(line, "data:") {
+				continue
+			}
+			line = strings.TrimPrefix(line, "data:")
+			line = strings.TrimSpace(line)
+			if line == "" || line == "[DONE]" {
+				continue
+			}
+
+			var llmResp llmparser.LLMResponse
+			if err := json.Unmarshal([]byte(line), &llmResp); err != nil {
+				log.Printf("Failed to unmarshal response: %s\n", err)
+				continue
+			}
+			response += llmResp.String()
+		}
+		fmt.Printf("%s\n", response)
+	} else {
+		fmt.Printf("unknown content type: %s\n", ct)
+	}
+	fmt.Println(strings.Repeat("<", 58))
+
+	n.llmRequests.Delete(resp.Request.ID)
+
 }
 
 func (n *Notifier) OnTcpSession(id string, net, transport gopacket.Flow) {
