@@ -17,7 +17,15 @@
 - [x] 作为框架SDK，提供通知事件的接口，方便上层做UI展示
   - 事件通知支持OnRequest/OnResponse
   - 事件通知参数可以通过ID来关联一次请求和响应
-- [ ] UI支持
+- [x] 命令行颜色支持
+  - [x] 请求
+    - [x] 系统提示词
+    - [x] 用户提示词
+  - [x] 响应
+    - [x] 响应
+    - [x] 工具调用
+    - [x] 工具响应内容
+- [ ] 桌面UI支持
   - [ ] 紧凑型布局
   - [ ] 支持列表和详情展示
   - [ ] 支持多语言切换
@@ -40,6 +48,9 @@
   - [ ] 支持 /api/v0/chat/completions
   - [ ] 支持 /api/v0/completions
 
+### 截图
+
+![promptdumper](./docs/colorful.png)
 
 ## 限制
 
