@@ -1,9 +1,10 @@
 package httpdumper
 
 import (
+	"net/http"
+
 	"github.com/google/gopacket"
 	"github.com/google/uuid"
-	"net/http"
 )
 
 // Config http dumper的配置
@@ -12,6 +13,7 @@ type Config struct {
 	PcapFile        string `json:"pcapFile"`        // pcap本地文件，跟Device冲突，必须二选一
 	BPFFilter       string `json:"bpfFilter"`       // 抓包语法过滤器
 	PromiscuousMode bool   `json:"promiscuousMode"` // 混杂模式，默认本地抓包就不需要
+	Verbose         bool   `json:"verbose"`         // 是否打印详细信息
 
 	snapLen int // 最多获取多长的数据包，这里必须是0，所有包都获取，不然http解析就被截断了。不能直接设置，仅用于调试
 }

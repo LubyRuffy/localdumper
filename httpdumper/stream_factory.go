@@ -6,15 +6,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/tcpassembly"
-	"github.com/google/gopacket/tcpassembly/tcpreader"
 	"io"
 	"log"
 	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/tcpassembly"
+	"github.com/google/gopacket/tcpassembly/tcpreader"
 )
 
 // tcpState 两端共享的状态信息
@@ -50,6 +51,7 @@ type httpStreamFactory struct {
 	m        sync.Map
 	wg       sync.WaitGroup
 	notifier Notifier
+	Verbose  bool
 }
 
 type RequestOrResponse int
@@ -72,6 +74,7 @@ type httpStream struct {
 	factory           *httpStreamFactory // 创建工厂
 	state             *tcpState          // 两端共享的状态
 	closeOnce         sync.Once          // 确保ReassemblyComplete只被调用一次
+	Verbose           bool               // 是否打印详细信息
 }
 
 // ReassemblyComplete implements tcpassembly.Stream's ReassemblyComplete function.
@@ -107,7 +110,9 @@ func (r *httpStream) Reassembled(reassembly []tcpassembly.Reassembly) {
 		} else {
 			r.requestOrResponse = RequestOrResponseError
 			// 不再进行处理
-			log.Println("not http protocol:", r.id)
+			if r.Verbose {
+				log.Println("not http protocol:", r.id)
+			}
 			r.state.discard.Store(true)
 			r.ReassemblyComplete()
 			return
@@ -167,7 +172,9 @@ func (s *httpStream) readResponse(buf *bufio.Reader) error {
 
 func (s *httpStream) run() {
 	defer func() {
-		log.Println("out:", s.id)
+		if s.Verbose {
+			log.Println("out:", s.id)
+		}
 		s.factory.wg.Done()
 	}()
 
@@ -239,6 +246,7 @@ func (f *httpStreamFactory) getHttpStream(net, transport gopacket.Flow) *httpStr
 		transport:    transport,
 		state:        state.(*tcpState),
 		isFirstPkt:   true,
+		Verbose:      f.Verbose,
 	}
 }
 

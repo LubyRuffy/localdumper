@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/tcpassembly"
-	"log"
-	"time"
 )
 
 func getHandle(cfg *Config) (*pcap.Handle, error) {
@@ -39,7 +40,7 @@ func getHandle(cfg *Config) (*pcap.Handle, error) {
 }
 
 func (hd *HttpDumper) processPackets(handle *pcap.Handle) {
-	streamFactory := &httpStreamFactory{notifier: hd.n}
+	streamFactory := &httpStreamFactory{notifier: hd.n, Verbose: hd.cfg.Verbose}
 	streamPool := tcpassembly.NewStreamPool(streamFactory)
 	assembler := tcpassembly.NewAssembler(streamPool)
 

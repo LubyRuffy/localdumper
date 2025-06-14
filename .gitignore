@@ -1,0 +1,6 @@
+.idea/
+gui/frontend/node_modules/
+gui/build/bin/
+gui/build/.DS_Store
+.DS_Store
+.vscode/launch.json
